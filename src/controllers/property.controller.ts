@@ -34,14 +34,67 @@ export const createProperty = async (req: Request, res: Response) => {
     if (typeof propertyData.amenities === 'string') {
       propertyData.amenities = JSON.parse(propertyData.amenities);
     }
+    if (typeof propertyData.price === 'string') {
+      propertyData.price = JSON.parse(propertyData.price);
+    }
+
+    // Validate required fields
+    if (!propertyData.listingType || !['rent', 'sale'].includes(propertyData.listingType)) {
+      return res.status(400).json({ message: 'Invalid listing type' });
+    }
+
+    // Validate price structure
+    if (!propertyData.price || typeof propertyData.price.amount !== 'number' || propertyData.price.amount <= 0) {
+      return res.status(400).json({ message: 'Invalid price amount' });
+    }
+
+    if (propertyData.listingType === 'rent' && !propertyData.price.frequency) {
+      return res.status(400).json({ message: 'Payment frequency is required for rental properties' });
+    }
+
+    // Validate numeric values in features
+    if (propertyData.features) {
+      if (isNaN(propertyData.features.bedrooms) || propertyData.features.bedrooms < 0) {
+        return res.status(400).json({ message: 'Invalid bedrooms value' });
+      }
+      if (isNaN(propertyData.features.bathrooms) || propertyData.features.bathrooms < 0) {
+        return res.status(400).json({ message: 'Invalid bathrooms value' });
+      }
+      if (isNaN(propertyData.features.squareFeet) || propertyData.features.squareFeet <= 0) {
+        return res.status(400).json({ message: 'Invalid square feet value' });
+      }
+      if (propertyData.features.yearBuilt && (isNaN(propertyData.features.yearBuilt) || 
+          propertyData.features.yearBuilt < 1800 || 
+          propertyData.features.yearBuilt > new Date().getFullYear())) {
+        return res.status(400).json({ message: 'Invalid year built value' });
+      }
+      if (isNaN(propertyData.features.parking) || propertyData.features.parking < 0) {
+        return res.status(400).json({ message: 'Invalid parking spaces value' });
+      }
+    }
 
     const property = new PropertyModel(propertyData);
     await property.save();
 
     res.status(201).json(property);
-  } catch (error) {
-    console.error('Error creating property:', error);
-    res.status(500).json({ message: 'Error creating property' });
+  } catch (error: any) {
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        message: 'Validation error', 
+        errors: Object.values(error.errors).map((err: any) => err.message) 
+      });
+    }
+
+    // Handle other specific errors
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Duplicate property data' });
+    }
+
+    res.status(500).json({ 
+      message: 'Error creating property',
+      error: error.message
+    });
   }
 };
 
@@ -51,6 +104,7 @@ export const getProperties = async (req: Request, res: Response) => {
     const filter: PropertyFilter = req.query;
     const query: any = {};
 
+    // Location filter
     if (filter.location) {
       query.$or = [
         { 'location.address': { $regex: filter.location, $options: 'i' } },
@@ -59,12 +113,33 @@ export const getProperties = async (req: Request, res: Response) => {
       ];
     }
 
-    if (filter.minPrice) query.price = { $gte: filter.minPrice };
-    if (filter.maxPrice) query.price = { ...query.price, $lte: filter.maxPrice };
+    // Listing type filter
+    if (filter.listingType) {
+      query.listingType = filter.listingType;
+    }
+
+    // Price filter
+    if (filter.minPrice || filter.maxPrice) {
+      query['price.amount'] = {};
+      if (filter.minPrice) query['price.amount'].$gte = filter.minPrice;
+      if (filter.maxPrice) query['price.amount'].$lte = filter.maxPrice;
+    }
+
+    // Price frequency filter (for rentals)
+    if (filter.priceFrequency) {
+      query['price.frequency'] = filter.priceFrequency;
+    }
+
+    // Features filters
     if (filter.bedrooms) query['features.bedrooms'] = filter.bedrooms;
     if (filter.bathrooms) query['features.bathrooms'] = filter.bathrooms;
     if (filter.propertyType) query['features.propertyType'] = filter.propertyType;
-    if (filter.amenities) query.amenities = { $all: filter.amenities };
+    if (filter.furnished !== undefined) query['features.furnished'] = filter.furnished;
+
+    // Amenities filter
+    if (filter.amenities) {
+      query.amenities = { $all: filter.amenities };
+    }
 
     const properties = await PropertyModel.find(query).populate('landlordId', 'name email');
     res.json(properties);

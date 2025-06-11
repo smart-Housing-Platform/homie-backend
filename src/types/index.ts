@@ -13,7 +13,12 @@ export interface Property {
   id: string;
   title: string;
   description: string;
-  price: number;
+  listingType: 'rent' | 'sale';
+  price: {
+    amount: number;
+    frequency?: 'monthly' | 'yearly' | null;
+    type: 'fixed' | 'negotiable';
+  };
   location: {
     address: string;
     city: string;
@@ -30,23 +35,31 @@ export interface Property {
     squareFeet: number;
     propertyType: string;
     yearBuilt?: number;
+    parking?: number;
+    furnished: boolean;
   };
   amenities: string[];
-  images: string[];
+  images: Array<{
+    url: string;
+    publicId: string;
+  }>;
   landlordId: string;
-  status: 'available' | 'rented' | 'pending';
+  status: 'available' | 'rented' | 'sold' | 'pending';
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface PropertyFilter {
   location?: string;
+  listingType?: 'rent' | 'sale';
   minPrice?: number;
   maxPrice?: number;
+  priceFrequency?: 'monthly' | 'yearly';
   bedrooms?: number;
   bathrooms?: number;
   propertyType?: string;
   amenities?: string[];
+  furnished?: boolean;
 }
 
 export interface ApplicationStatus {

@@ -3,9 +3,9 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
 
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  cloud_name: "dfncltqnd",
+  api_key: "492531373787142",
+  api_secret: "5yw6fXj4DoH2dQKaSQN3BiUmoWE",
 });
 
 const storage = new CloudinaryStorage({
@@ -13,7 +13,12 @@ const storage = new CloudinaryStorage({
   params: {
     folder: 'homie/properties',
     allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-    transformation: [{ width: 1000, height: 1000, crop: 'limit' }],
+    transformation: [
+      { width: 1200, height: 800, crop: 'fill' },  // Main image size
+      { quality: 'auto', fetch_format: 'auto' },    // Auto optimize quality and format
+      { flags: 'progressive' }                      // Progressive loading
+    ],
+    format: 'webp',  // Convert all images to WebP for better compression
   } as any,
 });
 

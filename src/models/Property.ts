@@ -3,7 +3,12 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IProperty extends Document {
   title: string;
   description: string;
-  price: number;
+  listingType: 'rent' | 'sale';
+  price: {
+    amount: number;
+    frequency?: 'monthly' | 'yearly' | null; // for rentals
+    type: 'fixed' | 'negotiable';
+  };
   location: {
     address: string;
     city: string;
@@ -20,6 +25,8 @@ export interface IProperty extends Document {
     squareFeet: number;
     propertyType: string;
     yearBuilt?: number;
+    parking?: number;
+    furnished: boolean;
   };
   amenities: string[];
   images: Array<{
@@ -27,7 +34,7 @@ export interface IProperty extends Document {
     publicId: string;
   }>;
   landlordId: mongoose.Types.ObjectId;
-  status: 'available' | 'rented' | 'pending';
+  status: 'available' | 'rented' | 'sold' | 'pending';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,7 +43,24 @@ const PropertySchema: Schema = new Schema(
   {
     title: { type: String, required: true },
     description: { type: String, required: true },
-    price: { type: Number, required: true },
+    listingType: { 
+      type: String, 
+      enum: ['rent', 'sale'], 
+      required: true 
+    },
+    price: {
+      amount: { type: Number, required: true },
+      frequency: { 
+        type: String, 
+        enum: ['monthly', 'yearly', null],
+        default: null
+      },
+      type: { 
+        type: String, 
+        enum: ['fixed', 'negotiable'],
+        default: 'fixed'
+      }
+    },
     location: {
       address: { type: String, required: true },
       city: { type: String, required: true },
@@ -53,6 +77,8 @@ const PropertySchema: Schema = new Schema(
       squareFeet: { type: Number, required: true },
       propertyType: { type: String, required: true },
       yearBuilt: { type: Number },
+      parking: { type: Number, default: 0 },
+      furnished: { type: Boolean, default: false }
     },
     amenities: [{ type: String }],
     images: [{
@@ -62,7 +88,7 @@ const PropertySchema: Schema = new Schema(
     landlordId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     status: {
       type: String,
-      enum: ['available', 'rented', 'pending'],
+      enum: ['available', 'rented', 'sold', 'pending'],
       default: 'available',
     },
   },

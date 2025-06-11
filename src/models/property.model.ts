@@ -11,10 +11,27 @@ const propertySchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  price: {
-    type: Number,
+  listingType: {
+    type: String,
+    enum: ['rent', 'sale'],
     required: true,
-    min: 0,
+  },
+  price: {
+    amount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    frequency: {
+      type: String,
+      enum: ['monthly', 'yearly', null],
+      default: null,
+    },
+    type: {
+      type: String,
+      enum: ['fixed', 'negotiable'],
+      default: 'fixed',
+    },
   },
   location: {
     address: {
@@ -59,13 +76,28 @@ const propertySchema = new mongoose.Schema({
       required: true,
     },
     yearBuilt: Number,
+    parking: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    furnished: {
+      type: Boolean,
+      default: false,
+    },
   },
   amenities: [{
     type: String,
   }],
   images: [{
-    type: String,
-    required: true,
+    url: {
+      type: String,
+      required: true,
+    },
+    publicId: {
+      type: String,
+      required: true,
+    }
   }],
   landlordId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -74,7 +106,7 @@ const propertySchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['available', 'rented', 'pending'],
+    enum: ['available', 'rented', 'sold', 'pending'],
     default: 'available',
   },
 }, {
