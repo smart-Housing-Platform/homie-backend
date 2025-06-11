@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import * as bcrypt from 'bcryptjs';
+import bcrypt from 'bcryptjs';
 import { User } from '../types';
 
 interface IUserDocument extends Omit<User, 'id'>, mongoose.Document {
@@ -32,6 +32,10 @@ const userSchema = new mongoose.Schema({
   profileImage: {
     type: String,
   },
+  savedProperties: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Property'
+  }]
 }, {
   timestamps: true,
 });
@@ -49,9 +53,13 @@ userSchema.pre('save', async function(next) {
   }
 });
 
-// Method to compare password
+// Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
-  return bcrypt.compare(candidatePassword, this.password);
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    return false;
+  }
 };
 
 export const UserModel = mongoose.model<IUserDocument>('User', userSchema); 

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PropertyModel } from '../models/property.model';
 import { PropertyFilter } from '../types';
 import cloudinary from '../config/cloudinary';
+import { UserModel } from '../models/user.model';
 
 // Create a new property
 export const createProperty = async (req: Request, res: Response) => {
@@ -174,11 +175,30 @@ export const updateProperty = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Property not found' });
     }
 
-    if (property.landlordId.toString() !== req.user._id) {
+    if (property.landlordId.toString() !== req.user._id.toString()) {
+      console.log('Authorization failed:', {
+        propertyLandlordId: property.landlordId.toString(),
+        requestUserId: req.user._id.toString(),
+        match: property.landlordId.toString() === req.user._id.toString()
+      });
       return res.status(403).json({ message: 'Not authorized to update this property' });
     }
 
     const updateData = { ...req.body };
+
+    // Parse JSON strings in the request body
+    if (typeof updateData.location === 'string') {
+      updateData.location = JSON.parse(updateData.location);
+    }
+    if (typeof updateData.features === 'string') {
+      updateData.features = JSON.parse(updateData.features);
+    }
+    if (typeof updateData.amenities === 'string') {
+      updateData.amenities = JSON.parse(updateData.amenities);
+    }
+    if (typeof updateData.price === 'string') {
+      updateData.price = JSON.parse(updateData.price);
+    }
 
     // Handle new image uploads
     if (files && files.length > 0) {
@@ -192,17 +212,6 @@ export const updateProperty = async (req: Request, res: Response) => {
         url: file.path,
         publicId: file.filename
       }));
-    }
-
-    // Parse JSON strings in the request body
-    if (typeof updateData.location === 'string') {
-      updateData.location = JSON.parse(updateData.location);
-    }
-    if (typeof updateData.features === 'string') {
-      updateData.features = JSON.parse(updateData.features);
-    }
-    if (typeof updateData.amenities === 'string') {
-      updateData.amenities = JSON.parse(updateData.amenities);
     }
 
     const updatedProperty = await PropertyModel.findByIdAndUpdate(
@@ -222,13 +231,30 @@ export const updateProperty = async (req: Request, res: Response) => {
 export const deleteProperty = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    console.log('Delete property request:', {
+      propertyId: id,
+      userId: req.user._id,
+      userRole: req.user.role
+    });
+
     const property = await PropertyModel.findById(id);
 
     if (!property) {
       return res.status(404).json({ message: 'Property not found' });
     }
 
-    if (property.landlordId.toString() !== req.user._id) {
+    console.log('Property found:', {
+      propertyId: property._id,
+      landlordId: property.landlordId.toString(),
+      userId: req.user._id.toString()
+    });
+
+    if (property.landlordId.toString() !== req.user._id.toString()) {
+      console.log('Authorization failed:', {
+        propertyLandlordId: property.landlordId.toString(),
+        requestUserId: req.user._id.toString(),
+        match: property.landlordId.toString() === req.user._id.toString()
+      });
       return res.status(403).json({ message: 'Not authorized to delete this property' });
     }
 
@@ -242,5 +268,89 @@ export const deleteProperty = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error deleting property:', error);
     res.status(500).json({ message: 'Error deleting property' });
+  }
+};
+
+// Save a property
+export const saveProperty = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    // Check if property exists
+    const property = await PropertyModel.findById(id);
+    if (!property) {
+      return res.status(404).json({ message: 'Property not found' });
+    }
+
+    // Add property to user's saved properties if not already saved
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.savedProperties.includes(property._id)) {
+      return res.status(400).json({ message: 'Property already saved' });
+    }
+
+    user.savedProperties.push(property._id);
+    await user.save();
+
+    res.json({ message: 'Property saved successfully' });
+  } catch (error) {
+    console.error('Error saving property:', error);
+    res.status(500).json({ message: 'Error saving property' });
+  }
+};
+
+// Unsave a property
+export const unsaveProperty = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    // Check if property exists
+    const property = await PropertyModel.findById(id);
+    if (!property) {
+      return res.status(404).json({ message: 'Property not found' });
+    }
+
+    // Remove property from user's saved properties
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const propertyIndex = user.savedProperties.indexOf(property._id);
+    if (propertyIndex === -1) {
+      return res.status(400).json({ message: 'Property not in saved list' });
+    }
+
+    user.savedProperties.splice(propertyIndex, 1);
+    await user.save();
+
+    res.json({ message: 'Property removed from saved list' });
+  } catch (error) {
+    console.error('Error unsaving property:', error);
+    res.status(500).json({ message: 'Error removing property from saved list' });
+  }
+};
+
+// Check if a property is saved
+export const isPropertySaved = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const isSaved = user.savedProperties.includes(id);
+    res.json({ saved: isSaved });
+  } catch (error) {
+    console.error('Error checking saved status:', error);
+    res.status(500).json({ message: 'Error checking saved status' });
   }
 }; 

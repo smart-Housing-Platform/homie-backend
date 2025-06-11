@@ -38,7 +38,7 @@ export const register = async (req: Request, res: Response) => {
       message: 'User created successfully',
       token,
       user: {
-        id: user._id,
+        _id: user._id,
         email: user.email,
         name: user.name,
         role: user.role,
@@ -79,7 +79,7 @@ export const login = async (req: Request, res: Response) => {
     res.json({
       token,
       user: {
-        id: user._id,
+        _id: user._id,
         email: user.email,
         name: user.name,
         role: user.role,
@@ -96,7 +96,15 @@ export const getProfile = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    res.json(user);
+    res.json({
+      _id: user._id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      profileImage: user.profileImage,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching profile' });
   }

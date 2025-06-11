@@ -10,6 +10,7 @@ import authRoutes from './routes/auth.routes';
 import propertyRoutes from './routes/property.routes';
 import applicationRoutes from './routes/application.routes';
 import maintenanceRoutes from './routes/maintenance.routes';
+import dashboardRoutes from './routes/dashboard.routes';
 
 // Load environment variables
 dotenv.config();
@@ -36,6 +37,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Error handling
 app.use(errorHandler);
